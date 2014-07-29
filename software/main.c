@@ -136,7 +136,10 @@ int main(int argc, char *argv[])
 
     memset(dataBuffer, 0xFF, sizeof(dataBuffer));
 
-    parseIntelHex(filePath, dataBuffer, &startAddress, &endAddress);
+    if(parseIntelHex(filePath, dataBuffer, &startAddress, &endAddress) == 0);
+    {
+        return 0;
+    }
 
     if(startAddress != 0)
     {
@@ -289,7 +292,7 @@ int parseIntelHex(char *hexfile, uint8_t* buffer, int *startAddr, int *endAddr)
   input = strcmp(hexfile, "-") == 0 ? stdin : fopen(hexfile, "r");
   if (input == NULL) {
     printf("> Error opening %s: %s\n", hexfile, strerror(errno));
-    return 1;
+    return 0;
   }
   
   while (parseUntilColon(input) == ':') {
@@ -311,7 +314,8 @@ int parseIntelHex(char *hexfile, uint8_t* buffer, int *startAddr, int *endAddr)
     
     sum += parseHex(input, 2);
     if ((sum & 0xff) != 0) {
-      printf("> Warning: Checksum error between address 0x%x and 0x%x\n", base, address);
+      printf("> Error: Checksum error between address 0x%x and 0x%x\n", base, address);
+      return 0;
     }
     
     if(*startAddr > base) {
@@ -323,7 +327,7 @@ int parseIntelHex(char *hexfile, uint8_t* buffer, int *startAddr, int *endAddr)
   }
   
   fclose(input);
-  return 0;
+  return 1;
 }
 /*-----------------------------------------------------------------------------------------------*/
 int parseUntilColon(FILE *file_pointer) 

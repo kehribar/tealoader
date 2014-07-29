@@ -53,3 +53,6 @@ commit:
 
 run:
 	make clean && make && ./main
+
+install:
+	cp main /usr/bin/tealoader
