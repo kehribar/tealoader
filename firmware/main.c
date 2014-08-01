@@ -6,11 +6,7 @@
 / can do whatever you want with this stuff. If we meet some day, and you think
 / this stuff is worth it, you can buy me a coffee in return.
 /------------------------------------------------------------------------------
-/ TODO: 
-/   - Add Watchdog Timer handling for bootloader recovery.
-/   - Restore the 32MHz PLL setting to its original state before exit.
-/------------------------------------------------------------------------------
-/ v1 - August 2014
+/ v2 - August 2014
 /----------------------------------------------------------------------------*/
 #include <avr/io.h> 
 #include <util/delay.h>
@@ -24,11 +20,13 @@ void sendch(uint8_t ch);
 void (*funcptr)(void) = 0x0000;
 /*---------------------------------------------------------------------------*/
 /* SPM_PAGESIZE is 128 for Xmega32E5 */
-volatile uint8_t pageBuf[SPM_PAGESIZE];
+uint8_t pageBuf[SPM_PAGESIZE];
 /*---------------------------------------------------------------------------*/
-#define VERSION 1
+#define VERSION 2
+#define WDT_Reset() asm("wdr")
 #define getByte() (USARTD0.DATA)
 #define newMessage() (USARTD0.STATUS & USART_RXCIF_bm)
+#define WDT_IsSyncBusy() (WDT.STATUS & WDT_SYNCBUSY_bm)
 /*---------------------------------------------------------------------------*/
 static void boot_program_page(uint32_t pageOffset, uint8_t *buf)
 {
@@ -39,48 +37,64 @@ static void boot_program_page(uint32_t pageOffset, uint8_t *buf)
 /*---------------------------------------------------------------------------*/
 int main(void) 
 {    
-    uint8_t t8;
     uint16_t i;
     uint8_t msg;
     uint32_t t32;
     uint8_t run = 1;
     uint32_t pageOffset;
     uint32_t counter = 0;
+   
+    /* If we are here because of a WDT reset, go directly to the user app. */
+    if(RST.STATUS & RST_WDRF_bm)
+    {
+        /* Clear the flag */        
+        RST.STATUS |= RST_WDRF_bm;
+
+        WDT_Reset();
+
+        /* Disable the WDT */
+        CCP = CCP_IOREG_gc;
+        WDT.CTRL = WDT_CEN_bm;
+
+        /* Go to user app ... */
+        funcptr();
+    }
+
+    /* Initialize the WDT peripheral */
+    CCP = CCP_IOREG_gc;
+    WDT.CTRL = WDT_WPER_1KCLK_gc | WDT_ENABLE_bm | WDT_CEN_bm;
+    while(WDT_IsSyncBusy());
+
+    /* Onboard LED */
+    pinMode(C,7,OUTPUT);
+    digitalWrite(C,7,HIGH);
 
     initClock_32Mhz();
     init_uart();
 
-    /* Onboard LED */
-    pinMode(C,7,OUTPUT);
-    pinMode(C,6,OUTPUT);    
-    digitalWrite(C,6,HIGH);
-
     /* Wait until a message arrives or timeout */
-    while((!newMessage())&&(run))
-    {        
-        if(counter++ > 0xFFFFF)
-        {
-            run = 0;
-        }        
-    }
+    while(!newMessage());
 
     /* Was it correct message? */
     if(getByte() != 'a')
     {
-        run = 0;
+        /* WDT will eventually jump to the user app. */
+        while(1);
     }
     else
     {
         /* Send ACK */
-        sendch('Y');
+        sendch('Y');    
     }    
 
-    while(run)
+    while(1)
     {        
         while(!newMessage());
+        
         msg = getByte();
+        
+        WDT_Reset();
 
-        togglePin(C,6);
         togglePin(C,7);
         
         switch(msg)
@@ -141,8 +155,8 @@ int main(void)
             {   
                 for(t32=0;t32<BOOTSTART;t32+=SPM_PAGESIZE)
                 {
-                    SP_EraseApplicationPage(t32);
-                    SP_WaitForSPM();            
+                    WDT_Reset(); SP_EraseApplicationPage(t32);
+                    WDT_Reset(); SP_WaitForSPM();
                 }                    
 
                 /* Send ACK */
@@ -158,23 +172,16 @@ int main(void)
             /* Go to user app ... */
             case 'x':
             {
-                digitalWrite(C,6,LOW);
-                digitalWrite(C,7,LOW);
-                pinMode(C,6,INPUT);
-                pinMode(C,7,INPUT);
-                funcptr();                 
+                /* WDT will eventually jump to the user app. */
+                while(1);
+
                 break;
             }
         }     
     }
     
-    digitalWrite(C,6,LOW);
-    digitalWrite(C,7,LOW);
-    pinMode(C,6,INPUT);
-    pinMode(C,7,INPUT);
-
-    /* Go to user app ... */
-    funcptr();
+    /* WDT will eventually jump to the user app. */
+    while(1);
 
     return 0;
 }

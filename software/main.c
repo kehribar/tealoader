@@ -6,7 +6,7 @@
 / can do whatever you want with this stuff. If we meet some day, and you think
 / this stuff is worth it, you can buy me a coffee in return.
 /--------------------------------------------------------------------------------------------------
-/ v0.1 - August 2014
+/ v0.2 - August 2014
 /------------------------------------------------------------------------------------------------*/
 #include <errno.h>
 #include <stdio.h>
@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include "serial_lib.h"
 /*-----------------------------------------------------------------------------------------------*/
-const float version = 0.1;
+const float version = 0.2;
 /*-----------------------------------------------------------------------------------------------*/
 int verbose = 0;
 int immediateExit = 0;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     fd = connectDevice(portPath);
 
     if(fd < 0)
-    {
+    {    
         return 0;
     }
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 
     memset(dataBuffer, 0xFF, sizeof(dataBuffer));
 
-    if(parseIntelHex(filePath, dataBuffer, &startAddress, &endAddress) == 0);
+    if(parseIntelHex(filePath, dataBuffer, &startAddress, &endAddress) == 0)
     {
         return 0;
     }
@@ -434,9 +434,34 @@ int readACK(fd)
 /*-----------------------------------------------------------------------------------------------*/
 int sendPing(int fd)
 {    
-    /* Send ping message */
-    serialport_writebyte(fd,'a');    
+    char msg;
+    uint8_t cnt = 10;
+    uint8_t res = -1;
 
-    return readACK(fd);
+    while((cnt--) || (res < 0))
+    {
+        /* Send ping message */
+        serialport_writebyte(fd,'a');
+
+         /* Read the response */
+        if(readRawBytes(fd,&msg,1,100) < 0)
+        {
+            /* Timeout or read problem */
+            res = -1;
+        }
+
+        if(msg == 'Y')
+        {
+            /* Return OK */
+            res = 1;
+        }
+        else
+        {
+            /* Wrong response ... */
+            res = -1;
+        }
+    }
+
+    return res;
 }
 /*-----------------------------------------------------------------------------------------------*/
