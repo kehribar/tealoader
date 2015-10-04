@@ -7,6 +7,7 @@
 / this stuff is worth it, you can buy me a coffee in return.
 /--------------------------------------------------------------------------------------------------
 / v0.2 - August 2014
+/ v0.3 - October 2015
 /------------------------------------------------------------------------------------------------*/
 #include <errno.h>
 #include <stdio.h>
@@ -16,7 +17,7 @@
 #include <unistd.h>
 #include "serial_lib.h"
 /*-----------------------------------------------------------------------------------------------*/
-const float version = 0.2;
+const float version = 0.3;
 /*-----------------------------------------------------------------------------------------------*/
 int verbose = 0;
 int immediateExit = 0;
@@ -27,10 +28,11 @@ uint8_t dataBuffer[65536];
 const char filePath[256]; 
 const char portPath[256];
 /*-----------------------------------------------------------------------------------------------*/
-int readACK(fd);
-int getVersion(fd);
+int readACK(int fd);
+int getVersion(int fd);
 int sendPing(int fd);
 int connectDevice(char* path);
+int setDTR(int fd, int level);
 int setRTS(int fd, int level);
 int parseUntilColon(FILE *file_pointer);
 int parseHex(FILE *file_pointer, int num_digits);
@@ -118,8 +120,12 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    /* Flush the serial port */
+    serialport_flush(fd);
+
     /* Auto reset the board */
     setRTS(fd,1); setRTS(fd,0); setRTS(fd,1);
+    setDTR(fd,1); setDTR(fd,0); setDTR(fd,1);
 
     if(sendPing(fd) > 0)
     {
@@ -369,6 +375,25 @@ int setRTS(int fd, int level)
         status &= ~TIOCM_RTS;
     if (ioctl(fd, TIOCMSET, &status) == -1) {
         perror("setRTS(): TIOCMSET");
+        return 0;
+    }
+    return 1;
+}
+/*-----------------------------------------------------------------------------------------------*/
+int setDTR(int fd, int level)
+{
+    int status;
+
+    if (ioctl(fd, TIOCMGET, &status) == -1) {
+        perror("setDTR(): TIOCMGET");
+        return 0;
+    }
+    if (level)
+        status |= TIOCM_DTR;
+    else
+        status &= ~TIOCM_DTR;
+    if (ioctl(fd, TIOCMSET, &status) == -1) {
+        perror("setDTR(): TIOCMSET");
         return 0;
     }
     return 1;
