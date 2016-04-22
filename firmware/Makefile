@@ -11,16 +11,16 @@ PROJECT = main
 CSRC    = main.c
 ASRC    = sp_driver.S
 VPATH   = 
-DEVICE  = atxmega32e5
+DEVICE  = atxmega16e5
 F_OSC   = 32000000
-UPLOAD  = sudo avrdude -c avrispmkii -p x32e5 -U flash:w:./obj/main.hex -e
-READ	= sudo avrdude -c avrispmkii -p x32e5 -U flash:r:main.hex:i
+UPLOAD  = sudo avrdude -c avrispmkii -p x16e5 -U flash:w:./obj/main.hex -e
+READ	= sudo avrdude -c avrispmkii -p x16e5 -U flash:r:main.hex:i
 
 ## Use the Atmel's latest GCC toolchain, not the Crosspack or any other version.
-TOOLCHAIN_PATH = /home/parallels/avr8-gnu-toolchain-linux_x86/bin/
+TOOLCHAIN_PATH = /Applications/Arduino.app/Contents/Java/hardware/tools/avr/bin/
 
 ## Bootloader start location
-BOOTSTART = 0x8000
+BOOTSTART = 0x4000
 
 ###############################################################################
 #
