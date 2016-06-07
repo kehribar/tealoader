@@ -97,16 +97,17 @@ int main(void)
     funcptr();
   }
 
+  initClock_32Mhz();
+
   /* Initialize the WDT peripheral */
   CCP = CCP_IOREG_gc;
-  WDT.CTRL = WDT_WPER_1KCLK_gc | WDT_ENABLE_bm | WDT_CEN_bm;
+  WDT.CTRL = WDT_WPER_2KCLK_gc | WDT_ENABLE_bm | WDT_CEN_bm;
   while(WDT_IsSyncBusy());
 
   /* Onboard LED */
-  pinMode(A,5,OUTPUT);
-  digitalWrite(A,5,HIGH);
-
-  initClock_32Mhz();
+  pinMode(D,1,OUTPUT);
+  digitalWrite(D,1,HIGH);
+  
   init_uart();
 
   /* Wait until a message arrives or timeout */
@@ -159,7 +160,7 @@ int main(void)
     
     WDT_Reset();
 
-    togglePin(A,5);
+    togglePin(D,1);
     
     switch(msg)
     {
